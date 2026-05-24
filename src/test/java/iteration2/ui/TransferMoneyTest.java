@@ -99,6 +99,18 @@ public class TransferMoneyTest {
 
         assertThat(receiverAccountAfterTransfer.getBalance())
                 .isEqualTo(receiverBalanceBeforeTransfer + 100.00);
+
+        assertThat(senderAccountAfterTransfer.getTransactions())
+                .isNotEmpty();
+
+        assertThat(receiverAccountAfterTransfer.getTransactions())
+                .isNotEmpty();
+
+        assertThat(senderAccountAfterTransfer.getTransactions().toString())
+                .contains("TRANSFER");
+
+        assertThat(receiverAccountAfterTransfer.getTransactions().toString())
+                .contains("TRANSFER");
     }
 
     @Test
@@ -163,6 +175,18 @@ public class TransferMoneyTest {
 
         assertThat(receiverAccountAfterTransfer.getBalance())
                 .isEqualTo(receiverBalanceBeforeTransfer + 10000.00);
+
+        assertThat(senderAccountAfterTransfer.getTransactions())
+                .isNotEmpty();
+
+        assertThat(receiverAccountAfterTransfer.getTransactions())
+                .isNotEmpty();
+
+        assertThat(senderAccountAfterTransfer.getTransactions().toString())
+                .contains("TRANSFER");
+
+        assertThat(receiverAccountAfterTransfer.getTransactions().toString())
+                .contains("TRANSFER");
     }
 
     @Test
@@ -276,5 +300,241 @@ public class TransferMoneyTest {
                 .then().assertThat()
                 .statusCode(HttpStatus.SC_OK)
                 .extract().as(CreateAccountResponse[].class);
+    }
+
+    @Test
+    public void userCanNotTransferAmountGreaterThanSenderAccountBalanceTest() {
+        CreateUserRequest sender = adminSteps.createUser();
+        CreateUserRequest receiver = adminSteps.createUser();
+
+        createAccount(sender);
+        createAccount(receiver);
+
+        CreateAccountResponse senderAccountBeforeDeposit = getUserAccounts(sender)[0];
+        CreateAccountResponse receiverAccountBeforeTransfer = getUserAccounts(receiver)[0];
+
+        deposit(sender, senderAccountBeforeDeposit.getId(), 500.00);
+
+        CreateAccountResponse senderAccountBeforeTransfer = getUserAccounts(sender)[0];
+
+        double senderBalanceBeforeTransfer = senderAccountBeforeTransfer.getBalance();
+        double receiverBalanceBeforeTransfer = receiverAccountBeforeTransfer.getBalance();
+
+        login(sender.getUsername(), sender.getPassword());
+
+        $(Selectors.withText("Make a Transfer"))
+                .shouldBe(Condition.visible)
+                .click();
+
+        $("input[placeholder='Enter recipient name']")
+                .shouldBe(Condition.visible);
+
+        $("select")
+                .shouldBe(Condition.visible)
+                .selectOption(1);
+
+        $("input[placeholder='Enter recipient name']")
+                .shouldBe(Condition.visible)
+                .setValue(receiver.getUsername());
+
+        $("input[placeholder='Enter recipient account number']")
+                .shouldBe(Condition.visible)
+                .setValue(receiverAccountBeforeTransfer.getAccountNumber());
+
+        $("input[placeholder='Enter amount']")
+                .shouldBe(Condition.visible)
+                .setValue("1000.00");
+
+        $("input[type='checkbox']")
+                .shouldBe(Condition.visible)
+                .click();
+
+        $(Selectors.withText("Send Transfer"))
+                .shouldBe(Condition.visible)
+                .click();
+
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Invalid transfer");
+
+        alert.accept();
+
+        CreateAccountResponse senderAccountAfterTransfer = getUserAccounts(sender)[0];
+        CreateAccountResponse receiverAccountAfterTransfer = getUserAccounts(receiver)[0];
+
+        assertThat(senderAccountAfterTransfer.getBalance())
+                .isEqualTo(senderBalanceBeforeTransfer);
+
+        assertThat(receiverAccountAfterTransfer.getBalance())
+                .isEqualTo(receiverBalanceBeforeTransfer);
+    }
+
+    @Test
+    public void userCanNotSubmitTransferWithoutSelectedSenderAccountTest() {
+        CreateUserRequest sender = adminSteps.createUser();
+        CreateUserRequest receiver = adminSteps.createUser();
+
+        createAccount(sender);
+        createAccount(receiver);
+
+        CreateAccountResponse receiverAccount = getUserAccounts(receiver)[0];
+
+        double senderBalanceBeforeTransfer = getUserAccounts(sender)[0].getBalance();
+        double receiverBalanceBeforeTransfer = receiverAccount.getBalance();
+
+        login(sender.getUsername(), sender.getPassword());
+
+        openTransferForm();
+
+        $("input[placeholder='Enter recipient name']")
+                .shouldBe(Condition.visible)
+                .setValue(receiver.getUsername());
+
+        $("input[placeholder='Enter recipient account number']")
+                .shouldBe(Condition.visible)
+                .setValue(receiverAccount.getAccountNumber());
+
+        $("input[placeholder='Enter amount']")
+                .shouldBe(Condition.visible)
+                .setValue("100.00");
+
+        $("input[type='checkbox']")
+                .shouldBe(Condition.visible)
+                .click();
+
+        $(Selectors.withText("Send Transfer"))
+                .shouldBe(Condition.visible)
+                .click();
+
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Please fill all fields and confirm");
+
+        alert.accept();
+
+        assertThat(getUserAccounts(sender)[0].getBalance())
+                .isEqualTo(senderBalanceBeforeTransfer);
+
+        assertThat(getUserAccounts(receiver)[0].getBalance())
+                .isEqualTo(receiverBalanceBeforeTransfer);
+    }
+
+    @Test
+    public void userCanNotSubmitTransferWithoutRecipientAccountNumberTest() {
+        CreateUserRequest sender = adminSteps.createUser();
+        CreateUserRequest receiver = adminSteps.createUser();
+
+        createAccount(sender);
+        createAccount(receiver);
+
+        CreateAccountResponse senderAccount = getUserAccounts(sender)[0];
+        CreateAccountResponse receiverAccount = getUserAccounts(receiver)[0];
+
+        deposit(sender, senderAccount.getId(), 500.00);
+
+        double senderBalanceBeforeTransfer = getUserAccounts(sender)[0].getBalance();
+        double receiverBalanceBeforeTransfer = receiverAccount.getBalance();
+
+        login(sender.getUsername(), sender.getPassword());
+
+        openTransferForm();
+
+        $("select")
+                .shouldBe(Condition.visible)
+                .selectOption(1);
+
+        $("input[placeholder='Enter recipient name']")
+                .shouldBe(Condition.visible)
+                .setValue(receiver.getUsername());
+
+        $("input[placeholder='Enter amount']")
+                .shouldBe(Condition.visible)
+                .setValue("100.00");
+
+        $("input[type='checkbox']")
+                .shouldBe(Condition.visible)
+                .click();
+
+        $(Selectors.withText("Send Transfer"))
+                .shouldBe(Condition.visible)
+                .click();
+
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Please fill all fields and confirm");
+
+        alert.accept();
+
+        assertThat(getUserAccounts(sender)[0].getBalance())
+                .isEqualTo(senderBalanceBeforeTransfer);
+
+        assertThat(getUserAccounts(receiver)[0].getBalance())
+                .isEqualTo(receiverBalanceBeforeTransfer);
+    }
+
+    @Test
+    public void userCanNotSubmitTransferWithoutConfirmationCheckboxTest() {
+        CreateUserRequest sender = adminSteps.createUser();
+        CreateUserRequest receiver = adminSteps.createUser();
+
+        createAccount(sender);
+        createAccount(receiver);
+
+        CreateAccountResponse senderAccount = getUserAccounts(sender)[0];
+        CreateAccountResponse receiverAccount = getUserAccounts(receiver)[0];
+
+        deposit(sender, senderAccount.getId(), 500.00);
+
+        double senderBalanceBeforeTransfer = getUserAccounts(sender)[0].getBalance();
+        double receiverBalanceBeforeTransfer = receiverAccount.getBalance();
+
+        login(sender.getUsername(), sender.getPassword());
+
+        openTransferForm();
+
+        $("select")
+                .shouldBe(Condition.visible)
+                .selectOption(1);
+
+        $("input[placeholder='Enter recipient name']")
+                .shouldBe(Condition.visible)
+                .setValue(receiver.getUsername());
+
+        $("input[placeholder='Enter recipient account number']")
+                .shouldBe(Condition.visible)
+                .setValue(receiverAccount.getAccountNumber());
+
+        $("input[placeholder='Enter amount']")
+                .shouldBe(Condition.visible)
+                .setValue("100.00");
+
+        $(Selectors.withText("Send Transfer"))
+                .shouldBe(Condition.visible)
+                .click();
+
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Please fill all fields and confirm");
+
+        alert.accept();
+
+        assertThat(getUserAccounts(sender)[0].getBalance())
+                .isEqualTo(senderBalanceBeforeTransfer);
+
+        assertThat(getUserAccounts(receiver)[0].getBalance())
+                .isEqualTo(receiverBalanceBeforeTransfer);
+    }
+
+    private void openTransferForm() {
+        $(Selectors.withText("Make a Transfer"))
+                .shouldBe(Condition.visible)
+                .click();
+
+        $("input[placeholder='Enter recipient name']")
+                .shouldBe(Condition.visible);
     }
 }

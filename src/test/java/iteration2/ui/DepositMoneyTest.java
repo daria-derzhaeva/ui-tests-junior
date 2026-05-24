@@ -9,13 +9,13 @@ import models.CreateUserRequest;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.openqa.selenium.Alert;
 import requests.steps.AdminSteps;
 import specs.RequestSpecs;
 
 import java.util.Map;
 
-import static com.codeborne.selenide.Selenide.$;
-import static com.codeborne.selenide.Selenide.$$;
+import static com.codeborne.selenide.Selenide.*;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -61,10 +61,23 @@ public class DepositMoneyTest {
 
         clickDepositSubmitButton();
 
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Successfully deposited");
+
+        alert.accept();
+
         CreateAccountResponse[] accountsAfterDeposit = getUserAccounts(user);
 
         assertThat(accountsAfterDeposit[0].getBalance())
                 .isEqualTo(balanceBeforeDeposit + 200.00);
+
+        assertThat(accountsAfterDeposit[0].getTransactions())
+                .isNotEmpty();
+
+        assertThat(accountsAfterDeposit[0].getTransactions().toString())
+                .contains("DEPOSIT");
     }
 
     @Test
@@ -92,10 +105,23 @@ public class DepositMoneyTest {
 
         clickDepositSubmitButton();
 
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Successfully deposited");
+
+        alert.accept();
+
         CreateAccountResponse[] accountsAfterDeposit = getUserAccounts(user);
 
         assertThat(accountsAfterDeposit[0].getBalance())
                 .isEqualTo(balanceBeforeDeposit + 5000.00);
+
+        assertThat(accountsAfterDeposit[0].getTransactions())
+                .isNotEmpty();
+
+        assertThat(accountsAfterDeposit[0].getTransactions().toString())
+                .contains("DEPOSIT");
     }
 
     @Test
@@ -127,6 +153,13 @@ public class DepositMoneyTest {
 
         assertThat(accountsAfterDeposit[0].getBalance())
                 .isEqualTo(balanceBeforeDeposit);
+
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("❌ Please deposit less or equal to 5000$.");
+
+        alert.accept();
     }
 
     private void login(String username, String password) {
@@ -181,5 +214,69 @@ public class DepositMoneyTest {
                 .statusCode(HttpStatus.SC_OK)
                 .extract()
                 .as(CreateAccountResponse[].class);
+    }
+
+    @Test
+    public void userCanNotSubmitDepositWithoutSelectedAccountTest() {
+        CreateUserRequest user = adminSteps.createUser();
+
+        createAccount(user);
+
+        CreateAccountResponse[] accountsBeforeDeposit = getUserAccounts(user);
+        double balanceBeforeDeposit = accountsBeforeDeposit[0].getBalance();
+
+        login(user.getUsername(), user.getPassword());
+
+        openDepositForm();
+
+        $("input[placeholder='Enter amount']")
+                .shouldBe(Condition.visible)
+                .setValue("200.00");
+
+        clickDepositSubmitButton();
+
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Please select an account");
+
+        alert.accept();
+
+        CreateAccountResponse[] accountsAfterDeposit = getUserAccounts(user);
+
+        assertThat(accountsAfterDeposit[0].getBalance())
+                .isEqualTo(balanceBeforeDeposit);
+    }
+
+    @Test
+    public void userCanNotSubmitDepositWithBlankAmountTest() {
+        CreateUserRequest user = adminSteps.createUser();
+
+        createAccount(user);
+
+        CreateAccountResponse[] accountsBeforeDeposit = getUserAccounts(user);
+        double balanceBeforeDeposit = accountsBeforeDeposit[0].getBalance();
+
+        login(user.getUsername(), user.getPassword());
+
+        openDepositForm();
+
+        $("select")
+                .shouldBe(Condition.visible)
+                .selectOption(1);
+
+        clickDepositSubmitButton();
+
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Please enter a valid amount");
+
+        alert.accept();
+
+        CreateAccountResponse[] accountsAfterDeposit = getUserAccounts(user);
+
+        assertThat(accountsAfterDeposit[0].getBalance())
+                .isEqualTo(balanceBeforeDeposit);
     }
 }

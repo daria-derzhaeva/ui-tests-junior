@@ -1,0 +1,209 @@
+### Positive test: User can open deposit money page
+UI
+Login as user
+Open User Dashboard
+Click Deposit Money button
+Check Deposit Money page is opened
+Check Select Account dropdown is displayed
+Check Enter Amount field is displayed
+Check Deposit button is displayed
+
+### Positive test: User can deposit money to own existing account
+UI
+Login as user
+Open User Dashboard
+Click Deposit Money button
+Select own account
+Enter amount "200.00"
+Click Deposit button
+Check success message is displayed
+Check account balance is increased by 200.00
+Check account balance is increased by 200.00 via API
+Check deposit transaction is created via API
+
+### Positive test: User can deposit maximum allowed amount
+UI
+Login as user
+Open User Dashboard
+Click Deposit Money button
+Select own account
+Enter amount "5000.00"
+Click Deposit button
+Check success message is displayed
+Check account balance is increased by 5000.00
+Check account balance is increased by 5000.00 via API
+
+### Negative test: User can not deposit amount greater than maximum allowed amount
+UI
+Login as user
+Open User Dashboard
+Click Deposit Money button
+Select own account
+Enter amount "5000.01"
+Click Deposit button
+Check validation error is displayed
+Check account balance is not changed
+Check account balance is not changed via API
+
+### Negative test: User can not submit deposit without selected account
+UI
+Login as user
+Open User Dashboard
+Click Deposit Money button
+Leave account dropdown empty
+Enter amount "200.00"
+Click Deposit button
+Check validation error is displayed
+Check deposit is not completed
+
+### Negative test: User can not submit deposit with blank amount
+UI
+Login as user
+Open User Dashboard
+Click Deposit Money button
+Select own account
+Leave amount field blank
+Click Deposit button
+Check validation error is displayed
+Check account balance is not changed
+
+### Positive test: User can open transfer page
+UI
+Login as user
+Open User Dashboard
+Click Make a Transfer button
+Check Make a Transfer page is opened
+Check Select Your Account dropdown is displayed
+Check Recipient Name field is displayed
+Check Recipient Account Number field is displayed
+Check Amount field is displayed
+Check Confirm details are correct checkbox is displayed
+Check Send Transfer button is displayed
+
+### Positive test: User can transfer money with valid amount
+UI
+Login as user
+Open User Dashboard
+Click Make a Transfer button
+Select sender account
+Enter recipient name
+Enter recipient account number
+Enter amount "100.00"
+Check Confirm details are correct checkbox
+Click Send Transfer button
+Check success message is displayed
+Check sender account balance is decreased by 100.00
+Check receiver account balance is increased by 100.00
+Check sender account balance is decreased by 100.00 via API
+Check receiver account balance is increased by 100.00 via API
+Check transfer transaction is created via API
+
+### Positive test: User can transfer maximum allowed amount
+UI
+Login as user
+Open User Dashboard
+Click Make a Transfer button
+Select sender account
+Enter recipient name
+Enter recipient account number
+Enter amount "10000.00"
+Check Confirm details are correct checkbox
+Click Send Transfer button
+Check success message is displayed
+Check sender account balance is decreased by 10000.00
+Check receiver account balance is increased by 10000.00
+Check sender and receiver balances are changed via API
+
+### Negative test: User can not transfer amount greater than maximum allowed amount
+UI
+Login as user
+Open User Dashboard
+Click Make a Transfer button
+Select sender account
+Enter recipient name
+Enter recipient account number
+Enter amount "10000.01"
+Check Confirm details are correct checkbox
+Click Send Transfer button
+Check validation error is displayed
+Check sender account balance is not changed
+Check receiver account balance is not changed
+Check sender and receiver balances are not changed via API
+
+### Negative test: User can not transfer amount greater than sender account balance
+UI
+Login as user
+Open User Dashboard
+Click Make a Transfer button
+Select sender account with balance 500.00
+Enter recipient name
+Enter recipient account number
+Enter amount "1000.00"
+Check Confirm details are correct checkbox
+Click Send Transfer button
+Check error message is displayed
+Check sender account balance is not changed
+Check receiver account balance is not changed
+Check sender and receiver balances are not changed via API
+
+### Negative test: User can not submit transfer without selected sender account
+UI
+Login as user
+Open User Dashboard
+Click Make a Transfer button
+Leave sender account dropdown empty
+Enter recipient name
+Enter recipient account number
+Enter amount "100.00"
+Check Confirm details are correct checkbox
+Click Send Transfer button
+Check validation error is displayed
+Check transfer is not completed
+
+### Negative test: User can not submit transfer without recipient account number
+UI
+Login as user
+Open User Dashboard
+Click Make a Transfer button
+Select sender account
+Enter recipient name
+Leave recipient account number field blank
+Enter amount "100.00"
+Check Confirm details are correct checkbox
+Click Send Transfer button
+Check validation error is displayed
+Check transfer is not completed
+
+### Negative test: User can not submit transfer without confirmation checkbox
+UI
+Login as user
+Open User Dashboard
+Click Make a Transfer button
+Select sender account
+Enter recipient name
+Enter recipient account number
+Enter amount "100.00"
+Leave Confirm details are correct checkbox unchecked
+Click Send Transfer button
+Check validation error is displayed
+Check transfer is not completed
+
+### Positive test: User can change profile name to valid name
+UI
+Login as user
+Open profile page
+Enter name "John Smith"
+Click Save button
+Check success message is displayed
+Check profile name is changed to "John Smith"
+Check profile name is changed to "John Smith" via API
+
+### Negative test: User can not change profile name with invalid format
+UI
+Login as user
+Open profile page
+Enter name "John Smith1"
+Click Save button
+Check validation error is displayed
+Check old profile name is still displayed
+Check profile name is not changed via API

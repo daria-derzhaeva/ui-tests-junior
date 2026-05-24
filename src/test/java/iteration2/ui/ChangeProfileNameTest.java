@@ -1,62 +1,140 @@
-package iteration2;
+package iteration2.ui;
 
+import com.codeborne.selenide.Condition;
+import com.codeborne.selenide.Configuration;
+import com.codeborne.selenide.Selectors;
+import com.codeborne.selenide.Selenide;
 import generators.RandomData;
-import iteration1.api.BaseTest;
-import models.UpdateProfileNameResponse;
-import org.hamcrest.Matchers;
+import models.CreateUserRequest;
+import org.apache.http.HttpStatus;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.openqa.selenium.Alert;
 import requests.steps.AdminSteps;
-import requests.steps.UserSteps;
-import specs.ResponseSpecs;
+import specs.RequestSpecs;
 
-public class ChangeProfileNameTest extends BaseTest {
+import java.util.Map;
+
+import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.switchTo;
+import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class ChangeProfileNameTest {
 
     private final AdminSteps adminSteps = new AdminSteps();
 
+    @BeforeAll
+    public static void setupSelenoid() {
+        Configuration.remote = "http://localhost:4444/wd/hub";
+        Configuration.baseUrl = "http://host.docker.internal:3000";
+        Configuration.browser = "chrome";
+        Configuration.browserSize = "1920x1080";
+        Configuration.timeout = 10000;
+
+        Configuration.browserCapabilities.setCapability("selenoid:options",
+                Map.of("enableVNC", true, "enableLog", true)
+        );
+    }
+
     @Test
-    public void userCanChangeProfileNameToValidName() {
-        String userToken = adminSteps.createUserAndGetToken();
-        UserSteps userSteps = new UserSteps(userToken);
+    public void userCanChangeProfileNameToValidNameTest() {
+        CreateUserRequest user = adminSteps.createUser();
 
         String expectedName = RandomData.getValidName();
 
-        UpdateProfileNameResponse response = userSteps.updateProfileName(expectedName);
+        login(user.getUsername(), user.getPassword());
 
-        String actualName = userSteps.getProfileName();
+        openProfile();
 
-        softly.assertThat(response.getMessage())
-                .isEqualTo(ResponseSpecs.PROFILE_UPDATED_SUCCESSFULLY);
+        $("input[placeholder='Enter new name']")
+                .shouldBe(Condition.visible)
+                .setValue(expectedName);
 
-        softly.assertThat(response.getCustomer().getName())
-                .isEqualTo(expectedName);
+        $(Selectors.withText("Save Changes"))
+                .shouldBe(Condition.visible)
+                .click();
 
-        softly.assertThat(actualName)
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Name updated successfully!");
+
+        alert.accept();
+
+        String profileName = getProfileName(user);
+
+        assertThat(profileName)
                 .isEqualTo(expectedName);
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {
-            "",
-            "Darya",
-            "Darya Darya Darya",
-            "Darya D1",
-            "Darya $arya",
-            "DaryaDarya"
-    })
-    public void userCannotChangeProfileNameToInvalidName(String invalidName) {
-        String userToken = adminSteps.createUserAndGetToken();
-        UserSteps userSteps = new UserSteps(userToken);
+    @Test
+    public void userCanNotChangeProfileNameWithInvalidFormatTest() {
+        CreateUserRequest user = adminSteps.createUser();
 
-        String nameBeforeUpdate = userSteps.getProfileName();
+        String nameBeforeUpdate = getProfileName(user);
 
-        userSteps.updateProfileNameWithBadRequest(invalidName)
-                .body(Matchers.equalTo(ResponseSpecs.INVALID_PROFILE_NAME_MESSAGE));
+        login(user.getUsername(), user.getPassword());
 
-        String nameAfterUpdate = userSteps.getProfileName();
+        openProfile();
 
-        softly.assertThat(nameAfterUpdate)
+        $("input[placeholder='Enter new name']")
+                .shouldBe(Condition.visible)
+                .setValue("John Smith1");
+
+        $(Selectors.withText("Save Changes"))
+                .shouldBe(Condition.visible)
+                .click();
+
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("Name must contain two words with letters only");
+
+        alert.accept();
+
+        String nameAfterUpdate = getProfileName(user);
+
+        assertThat(nameAfterUpdate)
                 .isEqualTo(nameBeforeUpdate);
+    }
+
+    private void login(String username, String password) {
+        Selenide.open("/login");
+
+        $(Selectors.byAttribute("placeholder", "Username"))
+                .shouldBe(Condition.visible)
+                .setValue(username);
+
+        $(Selectors.byAttribute("placeholder", "Password"))
+                .shouldBe(Condition.visible)
+                .setValue(password);
+
+        $("button")
+                .shouldBe(Condition.visible)
+                .click();
+
+        $(Selectors.byText("User Dashboard"))
+                .shouldBe(Condition.visible);
+    }
+
+    private void openProfile() {
+        Selenide.open("/edit-profile");
+
+        $(Selectors.withText("Edit Profile"))
+                .shouldBe(Condition.visible);
+
+        $("input[placeholder='Enter new name']")
+                .shouldBe(Condition.visible);
+    }
+
+    private String getProfileName(CreateUserRequest user) {
+        return given()
+                .spec(RequestSpecs.authAsUser(user.getUsername(), user.getPassword()))
+                .get("http://localhost:4111/api/v1/customer/profile")
+                .then().assertThat()
+                .statusCode(HttpStatus.SC_OK)
+                .extract()
+                .path("name");
     }
 }
