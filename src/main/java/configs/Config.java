@@ -22,4 +22,16 @@ public class Config {
     public static String getProperty(String key) {
         return INSTANCE.properties.getProperty(key);
     }
+
+    public static String getBaseUrl() {
+        return getProperty("server");
+    }
+
+    public static String getAdminAuth() {
+        return getProperty("admin.auth");
+    }
+
+    public static String getDefaultPassword() {
+        return getProperty("default.password");
+    }
 }

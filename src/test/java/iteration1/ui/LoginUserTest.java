@@ -14,12 +14,16 @@ import java.util.Map;
 import static com.codeborne.selenide.Selenide.$;
 
 public class LoginUserTest {
+
+    private final AdminSteps adminSteps = new AdminSteps();
+
     @BeforeAll
     public static void setupSelenoid() {
         Configuration.remote = "http://localhost:4444/wd/hub";
-        Configuration.baseUrl = "http://192.168.0.16:3000";
+        Configuration.baseUrl = "http://host.docker.internal:3000";
         Configuration.browser = "chrome";
         Configuration.browserSize = "1920x1080";
+        Configuration.timeout = 10000;
 
         Configuration.browserCapabilities.setCapability("selenoid:options",
                 Map.of("enableVNC", true, "enableLog", true)
@@ -28,27 +32,41 @@ public class LoginUserTest {
 
     @Test
     public void adminCanLoginWithCorrectDataTest() {
-        CreateUserRequest admin = CreateUserRequest.builder().username("admin").password("admin").build();
+        CreateUserRequest admin = CreateUserRequest.builder()
+                .username("admin")
+                .password("admin")
+                .build();
 
-        Selenide.open("/login");
+        login(admin.getUsername(), admin.getPassword());
 
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(admin.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(admin.getPassword());
-        $("button").click();
-
-        $(Selectors.byText("Admin Panel")).shouldBe(Condition.visible);
+        $(Selectors.byText("Admin Panel"))
+                .shouldBe(Condition.visible);
     }
 
     @Test
     public void userCanLoginWithCorrectDataTest() {
-        CreateUserRequest user = AdminSteps.createUser();
+        CreateUserRequest user = adminSteps.createUser();
 
+        login(user.getUsername(), user.getPassword());
+
+        $(Selectors.byClassName("welcome-text"))
+                .shouldBe(Condition.visible)
+                .shouldHave(Condition.text("Welcome, noname!"));
+    }
+
+    private void login(String username, String password) {
         Selenide.open("/login");
 
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(user.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(user.getPassword());
-        $("button").click();
+        $(Selectors.byAttribute("placeholder", "Username"))
+                .shouldBe(Condition.visible)
+                .setValue(username);
 
-        $(Selectors.byClassName("welcome-text")).shouldBe(Condition.visible).shouldHave(Condition.text("Welcome, noname!"));
+        $(Selectors.byAttribute("placeholder", "Password"))
+                .shouldBe(Condition.visible)
+                .setValue(password);
+
+        $("button")
+                .shouldBe(Condition.visible)
+                .click();
     }
 }

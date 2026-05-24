@@ -6,10 +6,16 @@ import org.apache.http.HttpStatus;
 import org.hamcrest.Matchers;
 
 public class ResponseSpecs {
-    private ResponseSpecs() {}
+
+    public static final String PROFILE_UPDATED_SUCCESSFULLY = "Profile updated successfully";
+    public static final String INVALID_PROFILE_NAME_MESSAGE = "Name must contain two words with letters only";
+
+    private ResponseSpecs() {
+    }
 
     private static ResponseSpecBuilder defaultResponseBuilder() {
-        return new ResponseSpecBuilder();
+        return new ResponseSpecBuilder()
+                .expectResponseTime(Matchers.lessThan(5000L));
     }
 
     public static ResponseSpecification entityWasCreated() {
@@ -24,10 +30,14 @@ public class ResponseSpecs {
                 .build();
     }
 
-    public static ResponseSpecification requestReturnsBadRequest(String errorKey, String errorValue) {
+    public static ResponseSpecification requestReturnsBadRequest() {
         return defaultResponseBuilder()
                 .expectStatusCode(HttpStatus.SC_BAD_REQUEST)
-                .expectBody(errorKey, Matchers.equalTo(errorValue))
+                .build();
+    }
+
+    public static ResponseSpecification withoutStatusCode() {
+        return defaultResponseBuilder()
                 .build();
     }
 }

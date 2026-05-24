@@ -1,12 +1,13 @@
 package generators;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+public class GeneratingRule {
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.FIELD)
-public @interface GeneratingRule {
-    String regex();
+    public static final int USERNAME_RANDOM_LENGTH = 8;
+    public static final int MIN_DEPOSIT_AMOUNT = 100;
+    public static final int MAX_DEPOSIT_AMOUNT = 4000;
+    public static final int MIN_TRANSFER_AMOUNT = 100;
+    public static final int MAX_TRANSFER_AMOUNT = 900;
+
+    private GeneratingRule() {
+    }
 }
