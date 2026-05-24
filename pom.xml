@@ -45,6 +45,11 @@
             <artifactId>selenide</artifactId>
             <version>7.9.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.curious-odd-man</groupId>
+            <artifactId>rgxgen</artifactId>
+            <version>2.0</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

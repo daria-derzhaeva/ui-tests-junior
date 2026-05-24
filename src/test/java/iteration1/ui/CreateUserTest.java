@@ -24,7 +24,7 @@ public class CreateUserTest {
     @BeforeAll
     public static void setupSelenoid() {
         Configuration.remote = "http://localhost:4444/wd/hub";
-        Configuration.baseUrl = "http://192.168.0.16:3000";
+        Configuration.baseUrl = "http://host.docker.internal:3000";
         Configuration.browser = "chrome";
         Configuration.browserSize = "1920x1080";
 
@@ -36,23 +36,22 @@ public class CreateUserTest {
     @Test
     public void adminCanCreateUserTest() {
         // ШАГ 1: админ залогинился в банке
-        CreateUserRequest admin = CreateUserRequest.builder().username("admin").password("admin").build();
-
-        Selenide.open("/login");
-
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(admin.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(admin.getPassword());
-        $("button").click();
-
-        $(Selectors.byText("Admin Panel")).shouldBe(Condition.visible);
+        loginAsAdmin();
 
         // ШАГ 2: админ создает юзера в банке
-        CreateUserRequest newUser = RandomModelGenerator.generate(CreateUserRequest.class);
+        CreateUserRequest newUser = RandomModelGenerator.getUserCreateRequest();
 
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(newUser.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(newUser.getPassword());
-        $(Selectors.byText("Add User")).click();
+        $(Selectors.byAttribute("placeholder", "Username"))
+                .shouldBe(Condition.visible)
+                .setValue(newUser.getUsername());
 
+        $(Selectors.byAttribute("placeholder", "Password"))
+                .shouldBe(Condition.visible)
+                .setValue(newUser.getPassword());
+
+        $(Selectors.byText("Add User"))
+                .shouldBe(Condition.visible)
+                .click();
 
         // ШАГ 3: проверка, что алерт "✅ User created successfully!"
         Alert alert = switchTo().alert();
@@ -62,12 +61,13 @@ public class CreateUserTest {
         alert.accept();
 
         // ШАГ 4: проверка, что юзер отображается на UI
-
         ElementsCollection allUsersFromDashboard = $(Selectors.byText("All Users")).parent().findAll("li");
-        allUsersFromDashboard.findBy(Condition.exactText(newUser.getUsername() + "\nUSER")).shouldBe(Condition.visible);
+
+        allUsersFromDashboard
+                .findBy(Condition.exactText(newUser.getUsername() + "\nUSER"))
+                .shouldBe(Condition.visible);
 
         // ШАГ 5: проверка, что юзер создан на API
-
         CreateUserResponse[] users = given()
                 .spec(RequestSpecs.adminSpec())
                 .get("http://localhost:4111/api/v1/admin/users")
@@ -75,8 +75,10 @@ public class CreateUserTest {
                 .statusCode(HttpStatus.SC_OK)
                 .extract().as(CreateUserResponse[].class);
 
-        CreateUserResponse createdUser = Arrays.stream(users).filter(user -> user.getUsername().equals(newUser.getUsername()))
-                .findFirst().get();
+        CreateUserResponse createdUser = Arrays.stream(users)
+                .filter(user -> user.getUsername().equals(newUser.getUsername()))
+                .findFirst()
+                .get();
 
         ModelAssertions.assertThatModels(newUser, createdUser).match();
     }
@@ -84,24 +86,23 @@ public class CreateUserTest {
     @Test
     public void adminCannotCreateUserWithInvalidDataTest() {
         // ШАГ 1: админ залогинился в банке
-        CreateUserRequest admin = CreateUserRequest.builder().username("admin").password("admin").build();
+        loginAsAdmin();
 
-        Selenide.open("/login");
-
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(admin.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(admin.getPassword());
-        $("button").click();
-
-        $(Selectors.byText("Admin Panel")).shouldBe(Condition.visible);
-
-        // ШАГ 2: админ создает юзера в банке
-        CreateUserRequest newUser = RandomModelGenerator.generate(CreateUserRequest.class);
+        // ШАГ 2: админ создает юзера с невалидными данными
+        CreateUserRequest newUser = RandomModelGenerator.getUserCreateRequest();
         newUser.setUsername("a");
 
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(newUser.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(newUser.getPassword());
-        $(Selectors.byText("Add User")).click();
+        $(Selectors.byAttribute("placeholder", "Username"))
+                .shouldBe(Condition.visible)
+                .setValue(newUser.getUsername());
 
+        $(Selectors.byAttribute("placeholder", "Password"))
+                .shouldBe(Condition.visible)
+                .setValue(newUser.getPassword());
+
+        $(Selectors.byText("Add User"))
+                .shouldBe(Condition.visible)
+                .click();
 
         // ШАГ 3: проверка, что алерт "Username must be between 3 and 15 characters"
         Alert alert = switchTo().alert();
@@ -111,12 +112,13 @@ public class CreateUserTest {
         alert.accept();
 
         // ШАГ 4: проверка, что юзер НЕ отображается на UI
-
         ElementsCollection allUsersFromDashboard = $(Selectors.byText("All Users")).parent().findAll("li");
-        allUsersFromDashboard.findBy(Condition.exactText(newUser.getUsername() + "\nUSER")).shouldNotBe(Condition.exist);
+
+        allUsersFromDashboard
+                .findBy(Condition.exactText(newUser.getUsername() + "\nUSER"))
+                .shouldNotBe(Condition.exist);
 
         // ШАГ 5: проверка, что юзер НЕ создан на API
-
         CreateUserResponse[] users = given()
                 .spec(RequestSpecs.adminSpec())
                 .get("http://localhost:4111/api/v1/admin/users")
@@ -124,8 +126,34 @@ public class CreateUserTest {
                 .statusCode(HttpStatus.SC_OK)
                 .extract().as(CreateUserResponse[].class);
 
-        long usersWithSameUsernameAsNewUser = Arrays.stream(users).filter(user -> user.getUsername().equals(newUser.getUsername())).count();
+        long usersWithSameUsernameAsNewUser = Arrays.stream(users)
+                .filter(user -> user.getUsername().equals(newUser.getUsername()))
+                .count();
 
         assertThat(usersWithSameUsernameAsNewUser).isZero();
+    }
+
+    private void loginAsAdmin() {
+        CreateUserRequest admin = CreateUserRequest.builder()
+                .username("admin")
+                .password("admin")
+                .build();
+
+        Selenide.open("/login");
+
+        $(Selectors.byAttribute("placeholder", "Username"))
+                .shouldBe(Condition.visible)
+                .setValue(admin.getUsername());
+
+        $(Selectors.byAttribute("placeholder", "Password"))
+                .shouldBe(Condition.visible)
+                .setValue(admin.getPassword());
+
+        $("button")
+                .shouldBe(Condition.visible)
+                .click();
+
+        $(Selectors.byText("Admin Panel"))
+                .shouldBe(Condition.visible);
     }
 }

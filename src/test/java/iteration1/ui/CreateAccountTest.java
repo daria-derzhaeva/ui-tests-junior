@@ -1,5 +1,6 @@
 package iteration1.ui;
 
+import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.Selectors;
 import com.codeborne.selenide.Selenide;
@@ -9,11 +10,8 @@ import models.LoginUserRequest;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.Alert;
-import requests.skelethon.Endpoint;
-import requests.skelethon.requesters.CrudRequester;
 import requests.steps.AdminSteps;
 import specs.RequestSpecs;
-import specs.ResponseSpecs;
 
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -24,12 +22,16 @@ import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class CreateAccountTest {
+
+    private final AdminSteps adminSteps = new AdminSteps();
+
     @BeforeAll
     public static void setupSelenoid() {
         Configuration.remote = "http://localhost:4444/wd/hub";
-        Configuration.baseUrl = "http://192.168.0.16:3000";
+        Configuration.baseUrl = "http://host.docker.internal:3000";
         Configuration.browser = "chrome";
         Configuration.browserSize = "1920x1080";
+        Configuration.timeout = 10000;
 
         Configuration.browserCapabilities.setCapability("selenoid:options",
                 Map.of("enableVNC", true, "enableLog", true)
@@ -39,34 +41,34 @@ public class CreateAccountTest {
     @Test
     public void userCanCreateAccountTest() {
         // ШАГИ ПО НАСТРОЙКЕ ОКРУЖЕНИЯ
-        // ШАГ 1: админ логинится в банке
-        // ШАГ 2: админ создает юзера
-        // ШАГ 3: юзер логинится в банке
+        // ШАГ 1: админ создает юзера
+        CreateUserRequest user = adminSteps.createUser();
 
-        CreateUserRequest user = AdminSteps.createUser();
+        // ШАГ 2: получаем токен юзера через API
+        LoginUserRequest loginUserRequest = LoginUserRequest.builder()
+                .username(user.getUsername())
+                .password(user.getPassword())
+                .build();
 
-        String userAuthHeader = new CrudRequester(
-                RequestSpecs.unauthSpec(),
-                Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOK())
-                .post(LoginUserRequest.builder().username(user.getUsername()).password(user.getPassword()).build())
-                .extract()
-                .header("Authorization");
+        String userAuthHeader = adminSteps.loginUser(loginUserRequest);
 
-        Selenide.open("/");
+        // ШАГ 3: юзер логинится в UI через localStorage
+        Selenide.open("/login");
 
         executeJavaScript("localStorage.setItem('authToken', arguments[0]);", userAuthHeader);
 
         Selenide.open("/dashboard");
 
+        $(Selectors.byText("User Dashboard"))
+                .shouldBe(Condition.visible);
+
         // ШАГИ ТЕСТА
         // ШАГ 4: юзер создает аккаунт
-
-        $(Selectors.byText("➕ Create New Account")).click();
-
+        $(Selectors.withText("Create New Account"))
+                .shouldBe(Condition.visible)
+                .click();
 
         // ШАГ 5: проверка, что аккаунт создался на UI
-
         Alert alert = switchTo().alert();
         String alertText = alert.getText();
 
@@ -77,15 +79,14 @@ public class CreateAccountTest {
         Pattern pattern = Pattern.compile("Account Number: (\\w+)");
         Matcher matcher = pattern.matcher(alertText);
 
-        matcher.find();
+        assertThat(matcher.find()).isTrue();
 
         String createdAccNumber = matcher.group(1);
 
         // ШАГ 6: проверка, что аккаунт был создан на API
-
         CreateAccountResponse[] existingUserAccounts = given()
                 .spec(RequestSpecs.authAsUser(user.getUsername(), user.getPassword()))
-                .get("http://localhost:4111/api/v1/customer/accounts")
+                .get("/api/v1/customer/accounts")
                 .then().assertThat()
                 .extract().as(CreateAccountResponse[].class);
 
@@ -94,6 +95,7 @@ public class CreateAccountTest {
         CreateAccountResponse createdAccount = existingUserAccounts[0];
 
         assertThat(createdAccount).isNotNull();
+        assertThat(createdAccount.getAccountNumber()).isEqualTo(createdAccNumber);
         assertThat(createdAccount.getBalance()).isZero();
     }
 }
