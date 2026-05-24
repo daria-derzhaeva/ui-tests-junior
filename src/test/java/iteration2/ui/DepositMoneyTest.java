@@ -26,7 +26,7 @@ public class DepositMoneyTest {
     @BeforeAll
     public static void setupSelenoid() {
         Configuration.remote = "http://localhost:4444/wd/hub";
-        Configuration.baseUrl = "http://host.docker.internal:3000";
+        Configuration.baseUrl = "http://192.168.100.170:3000";
         Configuration.browser = "chrome";
         Configuration.browserSize = "1920x1080";
         Configuration.timeout = 10000;
@@ -149,17 +149,17 @@ public class DepositMoneyTest {
 
         clickDepositSubmitButton();
 
+        Alert alert = switchTo().alert();
+
+        assertThat(alert.getText())
+                .contains("❌ Please deposit less or equal to 5000");
+
+        alert.accept();
+
         CreateAccountResponse[] accountsAfterDeposit = getUserAccounts(user);
 
         assertThat(accountsAfterDeposit[0].getBalance())
                 .isEqualTo(balanceBeforeDeposit);
-
-        Alert alert = switchTo().alert();
-
-        assertThat(alert.getText())
-                .contains("❌ Please deposit less or equal to 5000$.");
-
-        alert.accept();
     }
 
     private void login(String username, String password) {
